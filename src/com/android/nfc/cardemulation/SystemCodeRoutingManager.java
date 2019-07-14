@@ -64,7 +64,7 @@ public class SystemCodeRoutingManager {
             for (T3tIdentifier t3tIdentifier : toBeAdded) {
                 if (DBG) Log.d(TAG, "registerNfcFSystemCodeonDh:");
                 NfcService.getInstance().registerT3tIdentifier(
-                        t3tIdentifier.systemCode, t3tIdentifier.nfcid2, t3tIdentifier.t3tPmm);
+                        t3tIdentifier.systemCode, t3tIdentifier.nfcid2 , t3tIdentifier.t3tPmm);
             }
             if (DBG) {
                 Log.d(TAG, "(Before) mConfiguredT3tIdentifiers: size=" +
@@ -79,8 +79,6 @@ public class SystemCodeRoutingManager {
                     Log.d(TAG, "    " + t3tIdentifier.systemCode +
                             "/" + t3tIdentifier.nfcid2 +
                             "/" + t3tIdentifier.t3tPmm);
-
-                    Log.d(TAG, "    " + t3tIdentifier.systemCode + "/");
                 }
             }
             mConfiguredT3tIdentifiers = t3tIdentifiers;

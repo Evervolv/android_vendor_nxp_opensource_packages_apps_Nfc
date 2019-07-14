@@ -96,7 +96,7 @@ public class PeripheralHandoverService extends Service implements BluetoothPerip
                 handleBluetoothStateChanged(intent);
             }
         }
-   };
+    };
 
     public PeripheralHandoverService() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -109,6 +109,7 @@ public class PeripheralHandoverService extends Service implements BluetoothPerip
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
         synchronized (sLock) {
             if (mStartId != 0) {
                 mStartId = startId;
@@ -265,11 +266,6 @@ public class PeripheralHandoverService extends Service implements BluetoothPerip
         }
     }
 
-   @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-
     boolean hasConnectedBluetoothDevices() {
         Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
 
@@ -303,6 +299,21 @@ public class PeripheralHandoverService extends Service implements BluetoothPerip
             // Ignore
         }
     }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+
+                    // Not required to check the remote BT "target" device
+                    // connection status, because sometimes the connection
+                    // state is not yet been updated upon disconnection.
+                    // It is enough to check the connection status for
+                    // "other" remote BT device/s.
+
+
+            // Ignore
 
     @Override
     public boolean onUnbind(Intent intent) {

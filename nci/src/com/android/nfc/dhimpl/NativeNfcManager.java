@@ -2,7 +2,7 @@
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  * Not a Contribution.
  *
- * Copyright (C) 2015-2018 NXP Semiconductors
+ * Copyright (C) 2018 NXP Semiconductors
  * The original Work has been changed by NXP Semiconductors.
  * Copyright (C) 2010 The Android Open Source Project
  *
@@ -20,18 +20,12 @@
  */
 package com.android.nfc.dhimpl;
 
-import android.annotation.SdkConstant;
-import android.annotation.SdkConstant.SdkConstantType;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.nfc.ErrorCodes;
 import android.nfc.tech.Ndef;
 import android.nfc.tech.TagTechnology;
 import android.util.Log;
-import java.io.File;
 
-import java.util.HashMap;
-import java.util.Map;
 import com.android.nfc.DeviceHost;
 import com.android.nfc.LlcpException;
 import com.android.nfc.NfcDiscoveryParameters;
@@ -47,30 +41,16 @@ import java.util.HashMap;
  */
 public class NativeNfcManager implements DeviceHost {
     private static final String TAG = "NativeNfcManager";
-    private static final long FIRMWARE_MODTIME_DEFAULT = -1;
     static final String PREF = "NciDeviceHost";
 
     static final int DEFAULT_LLCP_MIU = 1980;
     static final int DEFAULT_LLCP_RWSIZE = 2;
-    static final int PN547C2_ID = 1;
-    static final int PN65T_ID = 2;
-    static final int PN548C2_ID = 3;
-    static final int PN66T_ID = 4;
-    static final int PN551_ID = 5;
-    static final int PN67T_ID = 6;
-    static final int PN553_ID = 7;
-    static final int PN80T_ID = 8;
 
     static final String DRIVER_NAME = "android-nci";
 
-    private static final byte[][] EE_WIPE_APDUS = {};
-
     static {
-        System.loadLibrary("nqnfc_nci_jni");
+        System.loadLibrary("sn100nfc_nci_jni");
     }
-
-    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
-    public static final String INTERNAL_TARGET_DESELECTED_ACTION = "com.android.nfc.action.INTERNAL_TARGET_DESELECTED";
 
     /* Native structure */
     private long mNative;
@@ -79,35 +59,32 @@ public class NativeNfcManager implements DeviceHost {
     private final DeviceHostListener mListener;
     private final NativeNfcMposManager mMposMgr;
     private final Context mContext;
-    private Map<String, Integer> mNfcid2ToHandle;
+
     private final Object mLock = new Object();
     private final HashMap<Integer, byte[]> mT3tIdentifiers = new HashMap<Integer, byte[]>();
+
     public NativeNfcManager(Context context, DeviceHostListener listener) {
         mListener = listener;
         initializeNativeStructure();
         mContext = context;
-        mNfcid2ToHandle = new HashMap<String, Integer>();
         mMposMgr = new NativeNfcMposManager();
     }
 
     public native boolean initializeNativeStructure();
 
     private native boolean doDownload();
-    @Override
-    public boolean download() {
-        return doDownload();
-    }
 
     public native int doGetLastError();
 
     @Override
     public void checkFirmware() {
-        if(doDownload()) {
-            Log.d(TAG,"FW Download Success");
-        }
-    else {
-            Log.d(TAG,"FW Download Failed");
-        }
+        doDownload();
+    }
+    public native int doaccessControlForCOSU (int mode);
+
+    @Override
+    public int accessControlForCOSU (int mode) {
+        return doaccessControlForCOSU (mode);
     }
 
     private native boolean doInitialize();
@@ -116,17 +93,6 @@ public class NativeNfcManager implements DeviceHost {
 
     @Override
     public boolean initialize() {
-        SharedPreferences prefs = mContext.getSharedPreferences(PREF, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-
-        if (prefs.getBoolean(NativeNfcSecureElement.PREF_SE_WIRED, false)) {
-            try {
-                Thread.sleep (12000);
-                editor.putBoolean(NativeNfcSecureElement.PREF_SE_WIRED, false);
-                editor.apply();
-            } catch (InterruptedException e) { }
-        }
-
         boolean ret = doInitialize();
         mIsoDepMaxTransceiveLength = getIsoDepMaxTransceiveLength();
         return ret;
@@ -136,7 +102,6 @@ public class NativeNfcManager implements DeviceHost {
 
     @Override
     public void enableDtaMode() {
-        Log.d(TAG,"enableDtaMode : entry");
         doEnableDtaMode();
     }
 
@@ -166,12 +131,6 @@ public class NativeNfcManager implements DeviceHost {
 
     @Override
     public boolean deinitialize() {
-        SharedPreferences prefs = mContext.getSharedPreferences(PREF, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-
-        editor.putBoolean(NativeNfcSecureElement.PREF_SE_WIRED, false);
-        editor.apply();
-
         return doDeinitialize();
     }
 
@@ -183,50 +142,29 @@ public class NativeNfcManager implements DeviceHost {
     @Override
     public native boolean sendRawFrame(byte[] data);
 
+    public native boolean doClearRoutingEntry(int type );
+
     @Override
-    public boolean routeAid(byte[] aid, int route, int powerState, int aidInfo) {
-
-        boolean status = true;
-        //if(mIsAidFilterSupported) {
-            //Prepare a cache of AIDs, and only send when vzwSetFilterList is called.
-          //  mAidFilter.addAppAidToCache(aid, route, powerState);
-       // } else {
-
-            status = doRouteAid(aid, route, powerState, aidInfo);
-
-        //}
-
-        return status;
+    public boolean clearRoutingEntry( int type ) {
+        return(doClearRoutingEntry( type ));
     }
 
-    public native boolean doRouteAid(byte[] aid, int route, int powerState, int aidInfo);
+    public native boolean doSetRoutingEntry(int type, int value, int route, int power);
+    @Override
+    public boolean setRoutingEntry(int type, int value, int route, int power) {
+        return(doSetRoutingEntry(type, value, route, power));
+    }
+    
+    @Override
+    public native boolean routeAid(byte[] aid, int route, int aidInfo, int powerState);
+
+
+    @Override
+    public native boolean unrouteAid(byte[] aid);
 
     @Override
     public native boolean routeApduPattern(int route, int powerState, byte[] apduData, byte[] apduMask);
-
-    @Override
-    public native boolean setDefaultRoute(int defaultRouteEntry, int defaultProtoRouteEntry, int defaultTechRouteEntry);
-
-    @Override
-    public boolean unrouteAid(byte[] aid) {
-    //    if(mIsAidFilterSupported) {
-            //Remove AID entry from cache.
-    //         mAidFilter.removeAppAidToCache(aid);
-    //    }
-
-        return doUnrouteAid(aid);
-    }
-
-    public native boolean doUnrouteAid(byte[] aid);
-
-    public native boolean clearAidTable();
-
-    @Override
-    public native void doSetProvisionMode(boolean provisionMode);
-
-    @Override
-    public native int getRemainingAidTableSize();
-
+    
     @Override
     public native int getAidTableSize();
 
@@ -240,10 +178,10 @@ public class NativeNfcManager implements DeviceHost {
     public native int   getDefaultMifareCLTRoute();
 
     @Override
-    public native int   getDefaultAidPowerState();
+    public native int   getDefaultFelicaCLTRoute();
 
     @Override
-    public native int   doNfcSelfTest(int type);
+    public native int   getDefaultAidPowerState();
 
     @Override
     public native int   getDefaultDesfirePowerState();
@@ -252,31 +190,68 @@ public class NativeNfcManager implements DeviceHost {
     public native int   getDefaultMifareCLTPowerState();
 
     @Override
+    public native int   getDefaultFelicaCLTPowerState();
+
+    @Override
+    public native int getGsmaPwrState();
+
+    @Override
+    public native boolean commitRouting();
+
+    @Override
+    public native void doChangeDiscoveryTech(int pollTech, int listenTech);
+
+    @Override
+    public native void setEmptyAidRoute(int deafultAidroute);
+
+    @Override
     public native boolean unrouteApduPattern(byte[] apduData);
 
     @Override
-    public native void doSetScreenOrPowerState(int state);
+    public native int[] doGetActiveSecureElementList();
+
+    public native int doRegisterT3tIdentifier(byte[] t3tIdentifier);
+
+    @Override
+    public void registerT3tIdentifier(byte[] t3tIdentifier) {
+        synchronized (mLock) {
+            int handle = doRegisterT3tIdentifier(t3tIdentifier);
+            if (handle != 0xffff) {
+                mT3tIdentifiers.put(Integer.valueOf(handle), t3tIdentifier);
+            }
+        }
+    }
+
+    public native void doDeregisterT3tIdentifier(int handle);
+
+    @Override
+    public void deregisterT3tIdentifier(byte[] t3tIdentifier) {
+        synchronized (mLock) {
+            Iterator<Integer> it = mT3tIdentifiers.keySet().iterator();
+            while (it.hasNext()) {
+                int handle = it.next().intValue();
+                byte[] value = mT3tIdentifiers.get(handle);
+                if (Arrays.equals(value, t3tIdentifier)) {
+                    doDeregisterT3tIdentifier(handle);
+                    mT3tIdentifiers.remove(handle);
+                    break;
+                }
+            }
+        }
+    }
+
+    @Override
+    public void clearT3tIdentifiersCache() {
+        synchronized (mLock) {
+            mT3tIdentifiers.clear();
+        }
+    }
+
+    @Override
+    public native int getLfT3tMax();
 
     @Override
     public native void doSetScreenState(int screen_state_mask);
-
-    @Override
-    public native void doEnablep2p(boolean p2pFlag);
-
-    public native boolean doSetRoutingEntry(int type, int value, int route, int power);
-    @Override
-    public boolean setRoutingEntry(int type, int value, int route, int power) {
-        return(doSetRoutingEntry(type, value, route, power));
-    }
-    public native boolean doClearRoutingEntry(int type );
-
-    @Override
-    public boolean clearRoutingEntry( int type ) {
-        return(doClearRoutingEntry( type ));
-    }
-
-    @Override
-    public native void doSetSecureElementListenTechMask(int tech_mask);
 
     @Override
     public native int getNciVersion();
@@ -284,65 +259,20 @@ public class NativeNfcManager implements DeviceHost {
     private native void doEnableDiscovery(int techMask,
                                           boolean enableLowPowerPolling,
                                           boolean enableReaderMode,
+                                          boolean enableHostRouting,
                                           boolean enableP2p,
                                           boolean restart);
-
     @Override
     public void enableDiscovery(NfcDiscoveryParameters params, boolean restart) {
         doEnableDiscovery(params.getTechMask(), params.shouldEnableLowPowerDiscovery(),
-                params.shouldEnableReaderMode(), params.shouldEnableP2p(), restart);
+                params.shouldEnableReaderMode(), params.shouldEnableHostRouting(),
+                params.shouldEnableP2p(), restart);
     }
 
     @Override
     public native void disableDiscovery();
 
-    @Override
-    public native int[] doGetSecureElementList();
-
-    @Override
-    public native void doSelectSecureElement(int seID);
-
-    @Override
-    public native void doActivateSecureElement(int seID);
-
-    @Override
-    public native void doDeselectSecureElement(int seID);
-
-    @Override
-    public native void doSetSEPowerOffState(int seID, boolean enable);
-
-    @Override
-    public native void setDefaultTechRoute(int seID, int tech_switchon, int tech_switchoff);
-
-    @Override
-    public native void setDefaultProtoRoute(int seID, int proto_switchon, int proto_switchoff);
-
-    @Override
-    public native int getChipVer();
-
-    @Override
-    public native int setTransitConfig(String configs);
-
-
-    @Override
-    public native int getNfcInitTimeout();
-
-    @Override
-    public native int JCOSDownload();
-
-    @Override
-    public native void doSetNfcMode(int nfcMode);
-
-    @Override
-    public native int GetDefaultSE();
-
-    @Override
-    public native boolean isVzwFeatureEnabled();
-
-    @Override
-    public native boolean isNfccBusy();
-
-    @Override
+   @Override
     public void setEtsiReaederState(int newState) {
         mMposMgr.doSetEtsiReaederState(newState);
     }
@@ -393,9 +323,6 @@ public class NativeNfcManager implements DeviceHost {
     public boolean mposGetReaderMode() {
         return mMposMgr.doMposGetReaderMode();
     }
-
-    @Override
-    public native void updateScreenState();
 
     private native NativeLlcpConnectionlessSocket doCreateLlcpConnectionlessSocket(int nSap,
             String sn);
@@ -474,9 +401,6 @@ public class NativeNfcManager implements DeviceHost {
     public native boolean doCheckLlcp();
 
     @Override
-    public native boolean doCheckJcopDlAtBoot();
-
-    @Override
     public native boolean doActivateLlcp();
 
     private native void doResetTimeouts();
@@ -504,8 +428,7 @@ public class NativeNfcManager implements DeviceHost {
 
     @Override
     public boolean canMakeReadOnly(int ndefType) {
-        return (ndefType == Ndef.TYPE_1 || ndefType == Ndef.TYPE_2 ||
-                ndefType == Ndef.TYPE_MIFARE_CLASSIC);
+        return (ndefType == Ndef.TYPE_1 || ndefType == Ndef.TYPE_2);
     }
 
     @Override
@@ -532,9 +455,6 @@ public class NativeNfcManager implements DeviceHost {
 
     }
 
-    @Override
-    public native int setEmvCoPollProfile(boolean enable, int route);
-
     private native void doSetP2pInitiatorModes(int modes);
     @Override
     public void setP2pInitiatorModes(int modes) {
@@ -550,16 +470,9 @@ public class NativeNfcManager implements DeviceHost {
     @Override
     public boolean getExtendedLengthApdusSupported() {
         /* 261 is the default size if extended length frames aren't supported */
-        if (getMaxTransceiveLength(TagTechnology.ISO_DEP) > 261) {
+        if (getMaxTransceiveLength(TagTechnology.ISO_DEP) > 261)
             return true;
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public byte[][] getWipeApdus() {
-        return EE_WIPE_APDUS;
+        return false;
     }
 
     @Override
@@ -592,163 +505,23 @@ public class NativeNfcManager implements DeviceHost {
         return true;
     }
 
-    //private native void doEnableReaderMode(int technologies);
-    //@Override
-    //public boolean enableScreenOffSuspend() {
-      //  doEnableScreenOffSuspend();
-        //return true;
-    //}
-
-    //private native void doDisableScreenOffSuspend();
-    //@Override
-    //public boolean disableScreenOffSuspend() {
-     //   doDisableScreenOffSuspend();
-       // return true;
-    //}
-
-
-    private native void doCommitRouting();
-
-    @Override
-    public native int doGetSecureElementTechList();
-
-    public native int doRegisterT3tIdentifier(byte[] t3tIdentifier);
-
-    @Override
-    public void registerT3tIdentifier(byte[] t3tIdentifier) {
-         Log.d(TAG, " registerT3tIdentifier entry");
-        synchronized (mLock) {
-            int handle = doRegisterT3tIdentifier(t3tIdentifier);
-            if (handle != 0xffff) {
-                mT3tIdentifiers.put(Integer.valueOf(handle), t3tIdentifier);
-            }
-        }
-        Log.d(TAG, "registerT3tIdentifier exit");
-    }
-
-    public native void doDeregisterT3tIdentifier(int handle);
-
-    @Override
-    public void deregisterT3tIdentifier(byte[] t3tIdentifier) {
-        Log.d(TAG, "deregisterT3tIdentifier entry");
-        synchronized (mLock) {
-            Iterator<Integer> it = mT3tIdentifiers.keySet().iterator();
-            while (it.hasNext()) {
-                int handle = it.next().intValue();
-                byte[] value = mT3tIdentifiers.get(handle);
-                if (Arrays.equals(value, t3tIdentifier)) {
-                    doDeregisterT3tIdentifier(handle);
-                    mT3tIdentifiers.remove(handle);
-                    break;
-                }
-            }
-        }
-        Log.d(TAG, "deregisterT3tIdentifier exit");
-    }
-
-    @Override
-    public void clearT3tIdentifiersCache() {
-        Log.d(TAG, "clearT3tIdentifiersCache entry");
-        synchronized (mLock) {
-            mT3tIdentifiers.clear();
-        }
-        Log.d(TAG, "clearT3tIdentifiersCache exit");
-    }
-
-    @Override
-    public native int getLfT3tMax();
-
-
-    @Override
-    public native int[] doGetActiveSecureElementList();
-
-
-    public native byte[] doGetSecureElementUid();
-
-    @Override
-    public byte[] getSecureElementUid()
-    {
-        byte[] buff;
-        buff = doGetSecureElementUid();
-        if(buff==null)
-        {
-            //Avoiding Null pointer Exception creating new byte array
-            buff =  new byte[0];
-            Log.d(TAG,"buff : " + buff);
-        }
-        return buff;
-    }
-    @Override
-    public void commitRouting() {
-        doCommitRouting();
-    }
-
-    @Override
-    public native void doPrbsOn(int prbs, int hw_prbs, int tech, int rate);
-
-    @Override
-    public native void doPrbsOff();
-
-    @Override
-    public native int SWPSelfTest(int ch);
-
-    @Override
-    public native int getFWVersion();
-
-    @Override
-    public native void doSetEEPROM(byte[] val);
-
-    @Override
-    public native byte[] doGetRouting();
-
-    @Override
-    public native int doGetSeInterface(int type);
-
-    @Override
-    public native int doselectUicc(int uiccSlot);
-
-    @Override
-    public native int doGetSelectedUicc();
-
-    /**
-     * This api internally used to set preferred sim slot to select UICC
-     */
-    @Override
-    public native int setPreferredSimSlot(int uiccSlot);
-
-    @Override
-    public native byte[] readerPassThruMode(byte status, byte modulationTyp);
-
-    @Override public native byte[] transceiveAppData(byte[] data);
-
     /**
      * Notifies Ndef Message (TODO: rename into notifyTargetDiscovered)
      */
     private void notifyNdefMessageListeners(NativeNfcTag tag) {
         mListener.onRemoteEndpointDiscovered(tag);
     }
-
-    /**
-     * Notifies transaction
-     */
-    private void notifyTargetDeselected() {
-        mListener.onCardEmulationDeselected();
+    private void notifySeListenActivated() {
+        mListener.onSeListenActivated();
     }
 
-    /**
-     * Notifies transaction
-     */
-    private void notifyConnectivityListeners(int evtSrc) {
-        mListener.onConnectivityEvent(evtSrc);
+    private void notifySeListenDeactivated() {
+        mListener.onSeListenDeactivated();
     }
 
-    /**
-     * Notifies transaction
-     */
-    private void notifyEmvcoMultiCardDetectedListeners() {
-        mListener.onEmvcoMultiCardDetectedEvent();
+    private void notifySeInitialized() {
+        mListener.onSeInitialized();
     }
-
     /**
      * Notifies P2P Device detected, to activate LLCP link
      */
@@ -770,22 +543,6 @@ public class NativeNfcManager implements DeviceHost {
         mListener.onLlcpFirstPacketReceived(device);
     }
 
-    private void notifySeFieldActivated() {
-        mListener.onRemoteFieldActivated();
-    }
-
-    private void notifySeFieldDeactivated() {
-        mListener.onRemoteFieldDeactivated();
-    }
-
-    private void notifyJcosDownloadInProgress(int enable) {
-        mListener.onRestartWatchDog(enable);
-    }
-
-    private void notifyFwDwnldRequested() {
-        mListener.onFwDwnldReqRestartNfc();
-    }
-
     /* Reader over SWP listeners*/
     private void notifyETSIReaderRequested(boolean istechA, boolean istechB) {
         mListener.onETSIReaderRequestedEvent(istechA, istechB);
@@ -803,44 +560,16 @@ public class NativeNfcManager implements DeviceHost {
         mListener.onETSIReaderModeStopConfig(disc_ntf_timeout);
     }
 
+    private void notifyHostEmuActivated(int technology) {
+        mListener.onHostCardEmulationActivated(technology);
+    }
+
     private void notifyonETSIReaderModeSwpTimeout(int disc_ntf_timeout) {
         mListener.onETSIReaderModeSwpTimeout(disc_ntf_timeout);
     }
 
     private void notifyonETSIReaderModeRestart() {
         mListener.onETSIReaderModeRestart();
-    }
-
-    private void notifySeListenActivated() {
-        mListener.onSeListenActivated();
-    }
-
-    private void notifySeListenDeactivated() {
-        mListener.onSeListenDeactivated();
-    }
-
-    private void notifySeApduReceived(byte[] apdu) {
-        mListener.onSeApduReceived(apdu);
-    }
-
-    private void notifySeEmvCardRemoval() {
-        mListener.onSeEmvCardRemoval();
-    }
-
-    private void notifySeMifareAccess(byte[] block) {
-        mListener.onSeMifareAccess(block);
-    }
-
-    private void notifyHostEmuActivated(int technology) {
-        mListener.onHostCardEmulationActivated(technology);
-    }
-
-    private void notifyT3tConfigure() {
-        mListener.onNotifyT3tConfigure();
-    }
-
-    private void notifyReRoutingEntry() {
-        mListener.onNotifyReRoutingEntry();
     }
 
     private void notifyHostEmuData(int technology, byte[] data) {
@@ -851,10 +580,6 @@ public class NativeNfcManager implements DeviceHost {
         mListener.onHostCardEmulationDeactivated(technology);
     }
 
-    private void notifyAidRoutingTableFull() {
-        mListener.onAidRoutingTableFull();
-    }
-
     private void notifyRfFieldActivated() {
         mListener.onRemoteFieldActivated();
     }
@@ -863,22 +588,30 @@ public class NativeNfcManager implements DeviceHost {
         mListener.onRemoteFieldDeactivated();
     }
 
-   private void notifyUiccStatusEvent(int uiccStat) {
-       mListener.onUiccStatusEvent(uiccStat);
-   }
-
     private void notifyTransactionListeners(byte[] aid, byte[] data, String evtSrc) {
         mListener.onNfcTransactionEvent(aid, data, evtSrc);
     }
-
-    static String toHexString(byte[] buffer, int offset, int length) {
-        final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
-        char[] chars = new char[2 * length];
-        for (int j = offset; j < offset + length; ++j) {
-            chars[2 * (j - offset)] = HEX_CHARS[(buffer[j] & 0xF0) >>> 4];
-            chars[2 * (j - offset) + 1] = HEX_CHARS[buffer[j] & 0x0F];
-        }
-        return new String(chars);
-    }
-
+/* NXP extension are here */
+    @Override
+    public native int getFWVersion();
+    @Override
+    public native byte[] readerPassThruMode(byte status, byte modulationTyp);
+    @Override
+    public native byte[] transceiveAppData(byte[] data);
+    @Override
+    public native boolean isNfccBusy();
+    @Override
+    public native int setTransitConfig(String configs);
+    @Override
+    public native void semsGetOutputData();
+    @Override
+    public native boolean semsGetExecutionStatus();
+    @Override
+    public native int getRemainingAidTableSize();
+    @Override
+    public native int doselectUicc(int uiccSlot);
+    @Override
+    public native int doGetSelectedUicc();
+    @Override
+    public native int setPreferredSimSlot(int uiccSlot);
 }

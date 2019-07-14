@@ -23,7 +23,6 @@
 #include <android-base/stringprintf.h>
 #include <base/logging.h>
 #include <cutils/properties.h>
-#include "nfc_config.h"
 
 using android::base::StringPrintf;
 extern bool nfc_debug_enabled;
@@ -84,8 +83,7 @@ static void phNxpLog_SetHALLogLevel(uint8_t level) {
   int len;
   char valueStr[PROPERTY_VALUE_MAX] = {0};
 
-  if (NfcConfig::hasKey(NAME_NXPLOG_HAL_LOGLEVEL)) {
-    num = NfcConfig::getUnsigned(NAME_NXPLOG_HAL_LOGLEVEL);
+  if (GetNxpNumValue(NAME_NXPLOG_HAL_LOGLEVEL, &num, sizeof(num))) {
     gLog_level.hal_log_level =
         (level > (unsigned char)num) ? level : (unsigned char)num;
     ;
@@ -114,8 +112,7 @@ static void phNxpLog_SetExtnsLogLevel(uint8_t level) {
   unsigned long num = 0;
   int len;
   char valueStr[PROPERTY_VALUE_MAX] = {0};
-  if (NfcConfig::hasKey(NAME_NXPLOG_EXTNS_LOGLEVEL)) {
-    num = NfcConfig::getUnsigned(NAME_NXPLOG_EXTNS_LOGLEVEL);
+  if (GetNxpNumValue(NAME_NXPLOG_EXTNS_LOGLEVEL, &num, sizeof(num))) {
     gLog_level.extns_log_level =
         (level > (unsigned char)num) ? level : (unsigned char)num;
     ;
@@ -144,8 +141,7 @@ static void phNxpLog_SetTmlLogLevel(uint8_t level) {
   unsigned long num = 0;
   int len;
   char valueStr[PROPERTY_VALUE_MAX] = {0};
-  if (NfcConfig::hasKey(NAME_NXPLOG_TML_LOGLEVEL)) {
-    num = NfcConfig::getUnsigned(NAME_NXPLOG_TML_LOGLEVEL);
+  if (GetNxpNumValue(NAME_NXPLOG_TML_LOGLEVEL, &num, sizeof(num))) {
     gLog_level.tml_log_level =
         (level > (unsigned char)num) ? level : (unsigned char)num;
     ;
@@ -174,8 +170,7 @@ static void phNxpLog_SetDnldLogLevel(uint8_t level) {
   unsigned long num = 0;
   int len;
   char valueStr[PROPERTY_VALUE_MAX] = {0};
-  if (NfcConfig::hasKey(NAME_NXPLOG_FWDNLD_LOGLEVEL)) {
-    num = NfcConfig::getUnsigned(NAME_NXPLOG_FWDNLD_LOGLEVEL);
+  if (GetNxpNumValue(NAME_NXPLOG_FWDNLD_LOGLEVEL, &num, sizeof(num))) {
     gLog_level.dnld_log_level =
         (level > (unsigned char)num) ? level : (unsigned char)num;
     ;
@@ -204,13 +199,11 @@ static void phNxpLog_SetNciTxLogLevel(uint8_t level) {
   unsigned long num = 0;
   int len;
   char valueStr[PROPERTY_VALUE_MAX] = {0};
-  if (NfcConfig::hasKey(NAME_NXPLOG_NCIX_LOGLEVEL)) {
-    num = NfcConfig::getUnsigned(NAME_NXPLOG_NCIX_LOGLEVEL);
+  if (GetNxpNumValue(NAME_NXPLOG_NCIX_LOGLEVEL, &num, sizeof(num))) {
     gLog_level.ncix_log_level =
         (level > (unsigned char)num) ? level : (unsigned char)num;
   }
-  if (NfcConfig::hasKey(NAME_NXPLOG_NCIR_LOGLEVEL)) {
-    num = NfcConfig::getUnsigned(NAME_NXPLOG_NCIR_LOGLEVEL);
+  if (GetNxpNumValue(NAME_NXPLOG_NCIR_LOGLEVEL, &num, sizeof(num))) {
     gLog_level.ncir_log_level =
         (level > (unsigned char)num) ? level : (unsigned char)num;
     ;

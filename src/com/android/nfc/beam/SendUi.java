@@ -486,8 +486,7 @@ public class SendUi implements Animator.AnimatorListener, View.OnTouchListener,
                 // We didn't build up any animation state yet, but
                 // did store the bitmap. Clear out the bitmap, reset
                 // state and bail.
-                mScreenshotView.setImageBitmap(null);
-                recycleBitmap();
+                mScreenshotBitmap = null;
                 mState = STATE_IDLE;
                 return;
             default:
@@ -553,9 +552,9 @@ public class SendUi implements Animator.AnimatorListener, View.OnTouchListener,
         mScaleUpAnimator.cancel();
         mAlphaUpAnimator.cancel();
         mAlphaDownAnimator.cancel();
-        mScreenshotView.setImageBitmap(null);
         mWindowManager.removeView(mDecor);
         mStatusBarManager.disable(StatusBarManager.DISABLE_NONE);
+        mScreenshotBitmap = null;
         mContext.unregisterReceiver(mReceiver);
         if (mToastString != null) {
             Toast toast = Toast.makeText(mContext, mToastString, Toast.LENGTH_LONG);
@@ -563,19 +562,9 @@ public class SendUi implements Animator.AnimatorListener, View.OnTouchListener,
             toast.show();
         }
         mToastString = null;
-        recycleBitmap();
-    }
     /*
     * Recycles Bitmap of ScreenShot
     */
-    private void recycleBitmap(){
-        try{
-            if(mScreenshotBitmap!=null && !mScreenshotBitmap.isRecycled()){
-                mScreenshotBitmap.recycle();
-            }
-        }catch(Exception e){
-            Log.e(TAG, "Error while recycle bitmap", e);
-        }
     }
 
     /**

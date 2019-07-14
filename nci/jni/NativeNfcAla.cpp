@@ -27,7 +27,6 @@
 #include "SecureElement.h"
 #include "TransactionController.h"
 #include "phNxpConfig.h"
-#include "nfc_config.h"
 
 using android::base::StringPrintf;
 
@@ -556,9 +555,8 @@ int nfcManager_getLoaderServiceConfVersion(JNIEnv* /* e */, jobject /* o */)
     DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s: enter", __func__);
 #if (NXP_LDR_SVC_VER_2 == TRUE)
   if (nfcFL.nfcNxpEse) {
-    if (NfcConfig::hasKey(NAME_NXP_LOADER_SERICE_VERSION)) {
-      num = NfcConfig::getUnsigned(NAME_NXP_LOADER_SERICE_VERSION);
-    } else {
+    if (GetNxpNumValue(NAME_NXP_LOADER_SERICE_VERSION, (void*)&num,
+                       sizeof(num)) == false) {
       DLOG_IF(INFO, nfc_debug_enabled)
           << StringPrintf("LOADER_SERVICE_VERSION not found");
       num = 0;
